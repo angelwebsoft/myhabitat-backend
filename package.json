@@ -1,0 +1,25 @@
+{
+    "name": "gatepass-api",
+    "version": "1.0.0",
+    "description": "Node.js Express API for MyHabitat Visitor Management System using MongoDB",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js",
+        "seed:users": "node scripts/seedUsers.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.6",
+        "dotenv": "^16.6.1",
+        "express": "^4.22.1",
+        "firebase-admin": "^13.7.0",
+        "mongoose": "^8.23.0",
+        "socket.io": "^4.8.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.3"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
