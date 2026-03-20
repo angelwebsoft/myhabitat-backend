@@ -160,7 +160,14 @@ app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 app.get('/api/test', (req, res) => {
     res.json({ status: 'running', message: 'Server is up and running!' });
 });
-
+app.get("/check-db", async (req, res) => {
+    try {
+        const collections = await mongoose.connection.db.listCollections().toArray();
+        res.json(collections);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 // --- User Routes ---
 app.get('/api/users', async (req, res) => {
     try {
