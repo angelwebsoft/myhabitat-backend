@@ -20,6 +20,7 @@ const UserSchema = new mongoose.Schema({
         }
     },
     societyId: { type: String, required: true, trim: true },
+    vehicle_number: { type: String, trim: true },
     fcmToken: { type: String },
     createdAt: { type: Date, default: Date.now }
 });
@@ -27,6 +28,7 @@ const UserSchema = new mongoose.Schema({
 UserSchema.pre('validate', function (next) {
     if (this.role !== 'resident') {
         this.flatNumber = undefined;
+        this.vehicle_number = undefined;
     }
     next();
 });

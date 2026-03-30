@@ -66,6 +66,7 @@ const normalizeUserPayload = (payload = {}) => {
     const societyId = payload.societyId || payload.society_id || 'default-society';
     const fcmToken = payload.fcmToken || payload.fcm_token;
     const photo_url = payload.photoURL || payload.photo_url;
+    const vehicle_number = payload.vehicleNumber || payload.vehicle_number;
 
     return {
         uniqueId,
@@ -75,7 +76,8 @@ const normalizeUserPayload = (payload = {}) => {
         photo_url,
         flatNumber,
         societyId,
-        fcmToken
+        fcmToken,
+        vehicle_number
     };
 };
 
@@ -91,6 +93,7 @@ const serializeUser = (user) => ({
     flatNumber: user.flatNumber,
     societyId: user.societyId,
     fcmToken: user.fcmToken,
+    vehicleNumber: user.vehicle_number,
     createdAt: user.createdAt
 });
 
@@ -100,6 +103,7 @@ const normalizeVisitorPayload = (payload = {}) => ({
     mobile: payload.mobile,
     flat_number: payload.flatNumber || payload.flat_number,
     purpose: payload.purpose,
+    vehicle_number: payload.vehicleNumber || payload.vehicle_number,
     photo_url: payload.photoURL || payload.photo_url,
     status: payload.status || 'pending',
     check_in_time: payload.checkInTime || payload.check_in_time || null,
@@ -115,6 +119,7 @@ const serializeVisitor = (visitor) => ({
     mobile: visitor.mobile,
     flatNumber: visitor.flat_number,
     purpose: visitor.purpose,
+    vehicleNumber: visitor.vehicle_number,
     photoURL: visitor.photo_url,
     status: visitor.status,
     checkInTime: visitor.check_in_time,
@@ -131,6 +136,7 @@ const normalizePreApprovedPayload = (payload = {}) => ({
     resident_id: payload.residentId || payload.resident_id,
     visitor_name: payload.visitorName || payload.visitor_name,
     mobile: payload.mobile,
+    vehicle_number: payload.vehicleNumber || payload.vehicle_number,
     valid_date: payload.validDate || payload.valid_date,
     society_id: payload.societyId || payload.society_id,
     status: payload.status || 'pending'
@@ -142,6 +148,7 @@ const serializePreApproved = (guest) => ({
     residentId: guest.resident_id,
     visitorName: guest.visitor_name,
     mobile: guest.mobile,
+    vehicleNumber: guest.vehicle_number,
     validDate: guest.valid_date,
     societyId: guest.society_id,
     status: guest.status,
@@ -233,6 +240,9 @@ app.patch('/api/users/:id', async (req, res) => {
         }
         if (has('fcmToken') || has('fcm_token')) {
             updates.fcmToken = req.body.fcmToken || req.body.fcm_token;
+        }
+        if (has('vehicleNumber') || has('vehicle_number')) {
+            updates.vehicle_number = req.body.vehicleNumber || req.body.vehicle_number;
         }
 
         const nextRole = (updates.role ?? existing.role) || 'resident';
@@ -346,6 +356,9 @@ app.patch('/api/visitors/:id', async (req, res) => {
         }
         if (Object.prototype.hasOwnProperty.call(req.body, 'photoURL')) {
             updates.photo_url = req.body.photoURL;
+        }
+        if (Object.prototype.hasOwnProperty.call(req.body, 'vehicleNumber') || Object.prototype.hasOwnProperty.call(req.body, 'vehicle_number')) {
+            updates.vehicle_number = req.body.vehicleNumber || req.body.vehicle_number;
         }
 
         const updatedVisitor = await Visitor.findOneAndUpdate(
@@ -470,6 +483,7 @@ app.post('/api/preapproved/consume', async (req, res) => {
             mobile: guest.mobile,
             flat_number: derivedFlat,
             purpose: 'Pre-Approved Guest',
+            vehicle_number: guest.vehicle_number,
             photo_url: req.body.photoURL || req.body.photo_url,
             status: 'checked-in',
             check_in_time: new Date(),

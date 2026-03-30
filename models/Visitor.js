@@ -6,6 +6,7 @@ const VisitorSchema = new mongoose.Schema({
     mobile: { type: String, required: true },
     flat_number: { type: String, required: true },
     purpose: { type: String },
+    vehicle_number: { type: String },
     photo_url: { type: String },
     status: {
         type: String,
