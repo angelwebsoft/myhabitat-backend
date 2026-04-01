@@ -301,6 +301,12 @@ app.patch('/api/users/:id', async (req, res) => {
         if (has('fcmToken') || has('fcm_token')) {
             updates.fcmToken = req.body.fcmToken || req.body.fcm_token;
         }
+        if (has('residentType')) {
+            updates.residentType = req.body.residentType;
+        }
+        if (has('ownerId') || has('owner_id')) {
+            updates.owner_id = req.body.ownerId || req.body.owner_id;
+        }
         if (has('vehicleNumber') || has('vehicle_number')) {
             updates.vehicle_number = req.body.vehicleNumber || req.body.vehicle_number;
         }
