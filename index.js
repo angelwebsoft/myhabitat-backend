@@ -11,6 +11,9 @@ const Visitor = require('./models/Visitor');
 const Society = require('./models/Society');
 const PreApprovedGuest = require('./models/PreApprovedGuest');
 const { isPushEnabled, sendPush } = require('./services/push');
+const MaintenanceBill = require('./models/MaintenanceBill');
+const Payment = require('./models/Payment');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -154,6 +157,58 @@ const serializePreApproved = (guest) => ({
     status: guest.status,
     createdAt: guest.created_at
 });
+
+const normalizeBillPayload = (payload = {}) => ({
+    id: payload.id || `bill_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+    flat_number: payload.flat_number || payload.flatNumber,
+    resident_id: payload.resident_id || payload.residentId,
+    amount: payload.amount,
+    month: payload.month,
+    year: payload.year,
+    due_date: payload.due_date || payload.dueDate,
+    status: payload.status || 'unpaid',
+    society_id: payload.society_id || payload.societyId
+});
+
+const serializeBill = (bill) => ({
+    id: bill.id,
+    flatNumber: bill.flat_number,
+    flat_number: bill.flat_number,
+    residentId: bill.resident_id,
+    resident_id: bill.resident_id,
+    amount: bill.amount,
+    month: bill.month,
+    year: bill.year,
+    dueDate: bill.due_date,
+    due_date: bill.due_date,
+    status: bill.status,
+    societyId: bill.society_id,
+    society_id: bill.society_id,
+    createdAt: bill.created_at,
+    created_at: bill.created_at
+});
+
+const normalizePaymentPayload = (payload = {}) => ({
+    id: payload.id || `pay_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+    bill_id: payload.bill_id || payload.billId,
+    amount: payload.amount,
+    payment_mode: payload.payment_mode || payload.paymentMode,
+    transaction_id: payload.transaction_id || payload.transactionId
+});
+
+const serializePayment = (payment) => ({
+    id: payment.id,
+    bill_id: payment.bill_id,
+    billId: payment.bill_id,
+    amount: payment.amount,
+    payment_mode: payment.payment_mode,
+    paymentMode: payment.payment_mode,
+    transaction_id: payment.transaction_id,
+    transactionId: payment.transaction_id,
+    paid_at: payment.paid_at,
+    paidAt: payment.paid_at
+});
+
 
 // Connect to MongoDB
 connectDB();
@@ -522,6 +577,100 @@ app.post('/api/societies', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// --- Maintenance Routes ---
+app.post('/api/maintenance/create', async (req, res) => {
+    try {
+        const payload = normalizeBillPayload(req.body);
+        if (!payload.flat_number || !payload.resident_id || !payload.amount || !payload.month || !payload.year || !payload.due_date || !payload.society_id) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+        if (payload.amount <= 0) {
+            return res.status(400).json({ success: false, message: 'Amount must be positive' });
+        }
+
+        // Check for existing bill for the same month/year and flat number
+        const existing = await MaintenanceBill.findOne({
+            flat_number: payload.flat_number,
+            month: payload.month,
+            year: payload.year,
+            society_id: payload.society_id
+        });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Bill already exists for this month and flat' });
+        }
+
+        // Check if resident exists
+        const resident = await User.findOne({ uniqueId: payload.resident_id });
+        if (!resident) {
+            return res.status(400).json({ success: false, message: 'Invalid resident_id' });
+        }
+
+        const newBill = new MaintenanceBill(payload);
+        await newBill.save();
+        res.status(201).json({ success: true, message: 'Bill created' });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/maintenance/all', async (req, res) => {
+    try {
+        const query = {};
+        if (req.query.society_id || req.query.societyId) {
+            query.society_id = req.query.society_id || req.query.societyId;
+        }
+        const bills = await MaintenanceBill.find(query).sort({ created_at: -1 });
+        res.json({ success: true, data: bills.map(serializeBill) });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.get('/api/maintenance/my', async (req, res) => {
+    try {
+        const resident_id = req.query.resident_id || req.query.residentId;
+        if (!resident_id) {
+            return res.status(400).json({ success: false, message: 'resident_id is required' });
+        }
+        const bills = await MaintenanceBill.find({ resident_id }).sort({ created_at: -1 });
+        res.json({ success: true, data: bills.map(serializeBill) });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+app.post('/api/maintenance/pay', async (req, res) => {
+    try {
+        const { bill_id, amount, payment_mode, transaction_id } = req.body;
+        if (!bill_id || !amount || !payment_mode) {
+            return res.status(400).json({ success: false, message: 'Missing required fields' });
+        }
+
+        const bill = await MaintenanceBill.findOne({ id: bill_id });
+        if (!bill) {
+            return res.status(404).json({ success: false, message: 'Bill not found' });
+        }
+
+        if (bill.status === 'paid') {
+            return res.status(400).json({ success: false, message: 'Bill is already paid' });
+        }
+
+        // Create payment record
+        const paymentPayload = normalizePaymentPayload(req.body);
+        const newPayment = new Payment(paymentPayload);
+        await newPayment.save();
+
+        // Update bill status
+        bill.status = 'paid';
+        await bill.save();
+
+        res.json({ success: true, message: 'Payment successful' });
+    } catch (error) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+});
+
 
 app.use((error, req, res, next) => {
     if (error?.type === 'entity.too.large') {
