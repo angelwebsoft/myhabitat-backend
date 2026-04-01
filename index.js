@@ -583,10 +583,11 @@ app.post('/api/maintenance/create', async (req, res) => {
     try {
         const payload = normalizeBillPayload(req.body);
         if (!payload.flat_number || !payload.resident_id || !payload.amount || !payload.month || !payload.year || !payload.due_date || !payload.society_id) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
+            console.error('[maintenance] Missing fields in payload:', payload);
+            return res.status(400).json({ error: 'Missing required fields' });
         }
         if (payload.amount <= 0) {
-            return res.status(400).json({ success: false, message: 'Amount must be positive' });
+            return res.status(400).json({ error: 'Amount must be positive' });
         }
 
         // Check for existing bill for the same month/year and flat number
@@ -597,20 +598,21 @@ app.post('/api/maintenance/create', async (req, res) => {
             society_id: payload.society_id
         });
         if (existing) {
-            return res.status(400).json({ success: false, message: 'Bill already exists for this month and flat' });
+            return res.status(400).json({ error: 'Bill already exists for this month and flat' });
         }
 
         // Check if resident exists
         const resident = await User.findOne({ uniqueId: payload.resident_id });
         if (!resident) {
-            return res.status(400).json({ success: false, message: 'Invalid resident_id' });
+            return res.status(400).json({ error: 'Invalid resident_id' });
         }
 
         const newBill = new MaintenanceBill(payload);
         await newBill.save();
-        res.status(201).json({ success: true, message: 'Bill created' });
+        res.status(201).json({ message: 'Bill created' });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        console.error('[maintenance] Create error:', error.message);
+        res.status(400).json({ error: error.message });
     }
 });
 
@@ -621,9 +623,9 @@ app.get('/api/maintenance/all', async (req, res) => {
             query.society_id = req.query.society_id || req.query.societyId;
         }
         const bills = await MaintenanceBill.find(query).sort({ created_at: -1 });
-        res.json({ success: true, data: bills.map(serializeBill) });
+        res.json(bills.map(serializeBill));
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -631,12 +633,12 @@ app.get('/api/maintenance/my', async (req, res) => {
     try {
         const resident_id = req.query.resident_id || req.query.residentId;
         if (!resident_id) {
-            return res.status(400).json({ success: false, message: 'resident_id is required' });
+            return res.status(400).json({ error: 'resident_id is required' });
         }
         const bills = await MaintenanceBill.find({ resident_id }).sort({ created_at: -1 });
-        res.json({ success: true, data: bills.map(serializeBill) });
+        res.json(bills.map(serializeBill));
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ error: error.message });
     }
 });
 
@@ -644,16 +646,16 @@ app.post('/api/maintenance/pay', async (req, res) => {
     try {
         const { bill_id, amount, payment_mode, transaction_id } = req.body;
         if (!bill_id || !amount || !payment_mode) {
-            return res.status(400).json({ success: false, message: 'Missing required fields' });
+            return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const bill = await MaintenanceBill.findOne({ id: bill_id });
         if (!bill) {
-            return res.status(404).json({ success: false, message: 'Bill not found' });
+            return res.status(404).json({ error: 'Bill not found' });
         }
 
         if (bill.status === 'paid') {
-            return res.status(400).json({ success: false, message: 'Bill is already paid' });
+            return res.status(400).json({ error: 'Bill is already paid' });
         }
 
         // Create payment record
@@ -665,9 +667,9 @@ app.post('/api/maintenance/pay', async (req, res) => {
         bill.status = 'paid';
         await bill.save();
 
-        res.json({ success: true, message: 'Payment successful' });
+        res.json({ message: 'Payment successful' });
     } catch (error) {
-        res.status(400).json({ success: false, error: error.message });
+        res.status(400).json({ error: error.message });
     }
 });
 
