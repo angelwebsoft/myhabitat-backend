@@ -20,6 +20,7 @@ This document defines request & response format based on current database schema
 "uniqueId": "usr_1",
 "userName": "Amit Shah",
 "role": "admin | gatekeeper | resident",
+"residentType": "owner | tenant",
 "societyId": "soc_1",
 "fcmToken": "string"
 }
@@ -39,6 +40,7 @@ This document defines request & response format based on current database schema
 "userName": "Amit Shah",
 "mobileNumber": "9000000001",
 "role": "admin",
+"residentType": "owner",
 "flatNumber": "Office",
 "societyId": "soc_1"
 }

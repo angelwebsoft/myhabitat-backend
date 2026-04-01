@@ -20,6 +20,13 @@ const UserSchema = new mongoose.Schema({
         }
     },
     societyId: { type: String, required: true, trim: true },
+    residentType: {
+        type: String,
+        enum: ['owner', 'tenant'],
+        default: 'owner',
+        required: function () { return this.role === 'resident'; }
+    },
+    owner_id: { type: String, trim: true },
     vehicle_number: { type: String, trim: true },
     fcmToken: { type: String },
     createdAt: { type: Date, default: Date.now }

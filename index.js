@@ -70,7 +70,8 @@ const normalizeUserPayload = (payload = {}) => {
     const fcmToken = payload.fcmToken || payload.fcm_token;
     const photo_url = payload.photoURL || payload.photo_url;
     const vehicle_number = payload.vehicleNumber || payload.vehicle_number;
-
+    const residentType = payload.residentType || 'owner';
+    const owner_id = payload.ownerId || payload.owner_id;
     return {
         uniqueId,
         userName,
@@ -80,7 +81,9 @@ const normalizeUserPayload = (payload = {}) => {
         flatNumber,
         societyId,
         fcmToken,
-        vehicle_number
+        vehicle_number,
+        residentType,
+        owner_id
     };
 };
 
@@ -96,6 +99,8 @@ const serializeUser = (user) => ({
     flatNumber: user.flatNumber,
     societyId: user.societyId,
     fcmToken: user.fcmToken,
+    residentType: user.residentType || 'owner',
+    ownerId: user.owner_id,
     vehicleNumber: user.vehicle_number,
     createdAt: user.createdAt
 });
