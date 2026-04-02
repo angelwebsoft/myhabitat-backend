@@ -758,6 +758,31 @@ app.post('/api/maintenance/generate-all', async (req, res) => {
     }
 });
 
+// Update maintenance bill
+app.patch('/api/maintenance/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+        const bill = await MaintenanceBill.findOneAndUpdate({ id }, updates, { new: true });
+        if (!bill) return res.status(404).json({ error: 'Bill not found' });
+        res.json(bill);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Delete maintenance bill
+app.delete('/api/maintenance/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await MaintenanceBill.findOneAndDelete({ id });
+        if (!result) return res.status(404).json({ error: 'Bill not found' });
+        res.json({ message: 'Bill deleted successfully' });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
 
 app.use((error, req, res, next) => {
     if (error?.type === 'entity.too.large') {
