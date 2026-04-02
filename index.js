@@ -684,6 +684,80 @@ app.post('/api/maintenance/pay', async (req, res) => {
     }
 });
 
+app.post('/api/maintenance/generate-all', async (req, res) => {
+    try {
+        const { societyId, month, year, dueDate } = req.body;
+        if (!societyId || !month || !year || !dueDate) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Fetch all residents for this society
+        const residents = await User.find({ societyId, role: 'resident' });
+        if (!residents.length) {
+            return res.status(404).json({ error: 'No residents found in this society' });
+        }
+
+        let createdCount = 0;
+        let skippedCount = 0;
+
+        for (const resident of residents) {
+            const amount = resident.residentType === 'tenant' ? 1500 : 1000;
+            const payload = normalizeBillPayload({
+                flat_number: resident.flatNumber,
+                resident_id: resident.uniqueId,
+                amount,
+                month,
+                year,
+                due_date: dueDate,
+                society_id: societyId
+            });
+
+            // Check if bill already exists
+            const existing = await MaintenanceBill.findOne({
+                flat_number: payload.flat_number,
+                month: payload.month,
+                year: payload.year,
+                society_id: payload.society_id
+            });
+
+            if (existing) {
+                skippedCount++;
+                continue;
+            }
+
+            const newBill = new MaintenanceBill(payload);
+            await newBill.save();
+            createdCount++;
+
+            // Push Notification
+            if (isPushEnabled() && resident.fcmToken) {
+                try {
+                    await sendPush({
+                        tokens: [resident.fcmToken],
+                        title: 'Maintenance Bill Generated',
+                        body: `Your maintenance bill of ₹${amount} for ${month} ${year} has been generated.`,
+                        data: { type: 'bill_generated', billId: payload.id, month, year }
+                    });
+                } catch (e) {
+                    console.error(`[push] Notify error for resident ${resident.uniqueId}:`, e.message);
+                }
+            }
+        }
+
+        res.json({
+            message: 'Maintenance bills generation complete.',
+            summary: {
+                totalResidents: residents.length,
+                created: createdCount,
+                skipped: skippedCount
+            }
+        });
+    } catch (error) {
+        console.error('[maintenance] Generate-all error:', error.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 app.use((error, req, res, next) => {
     if (error?.type === 'entity.too.large') {
