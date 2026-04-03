@@ -563,6 +563,24 @@ app.post('/api/preapproved/consume', async (req, res) => {
         const serializedGuest = serializePreApproved(guest);
         const serializedVisitor = serializeVisitor(savedVisitor);
         emitSocietyEvent(serializedVisitor.societyId, 'visitor:created', serializedVisitor);
+
+        // Push notify the resident when their pre-approved guest checks in.
+        if (isPushEnabled() && serializedVisitor.residentId) {
+            const resident = await User.findOne({ uniqueId: serializedVisitor.residentId });
+            if (resident?.fcmToken) {
+                try {
+                    await sendPush({
+                        tokens: [resident.fcmToken],
+                        title: 'Pre-Approved Entry',
+                        body: `${serializedVisitor.visitorName} has checked in.`,
+                        data: { type: 'visitor_entry', visitorId: serializedVisitor.id, societyId: serializedVisitor.societyId }
+                    });
+                } catch (e) {
+                    console.error('[push] Failed to notify resident on pre-approved entry:', e?.message || e);
+                }
+            }
+        }
+
         res.json({ guest: serializedGuest, visitor: serializedVisitor });
     } catch (error) {
         res.status(400).json({ error: error.message });
