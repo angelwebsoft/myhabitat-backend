@@ -394,9 +394,12 @@ app.post('/api/visitors', async (req, res) => {
                         body: `${serialized.visitorName} is at the gate.`,
                         data: { type: 'visitor_request', visitorId: serialized.id, societyId: serialized.societyId }
                     });
+                    console.log(`[push] Successfully notified resident: ${resident.userName}`);
                 } catch (e) {
-                    console.error('[push] Failed to notify resident:', e?.message || e);
+                    console.error(`[push] Failed to notify resident ${resident.userName}:`, e?.message || e);
                 }
+            } else {
+                console.warn(`[push] Missing fcmToken for resident: ${serialized.residentId}`);
             }
         }
 
