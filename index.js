@@ -443,26 +443,27 @@ app.patch('/api/visitors/:id', async (req, res) => {
         const serialized = serializeVisitor(updatedVisitor);
         emitSocietyEvent(serialized.societyId, 'visitor:updated', serialized);
 
-        // Push notify the gatekeeper when resident approves/rejects.
-        const nextStatus = serialized.status;
+        // Notify the gatekeeper when resident approves/rejects.
         const prevStatus = before?.status;
+        const nextStatus = serialized.status;
+
         if (
             isPushEnabled() &&
-            updates.status &&
             nextStatus !== prevStatus &&
-            (nextStatus === 'approved' || nextStatus === 'rejected') &&
+            (nextStatus === 'checked-in' || nextStatus === 'rejected') &&
             serialized.gatekeeperId
         ) {
             const gatekeeper = await User.findOne({ uniqueId: serialized.gatekeeperId });
             if (gatekeeper?.fcmToken) {
-                const actionLabel = nextStatus === 'approved' ? 'approved' : 'rejected';
+                const actionLabel = nextStatus === 'checked-in' ? 'Approved' : 'Rejected';
                 try {
                     await sendPush({
                         tokens: [gatekeeper.fcmToken],
-                        title: 'Visitor Update',
-                        body: `Flat ${serialized.flatNumber} ${actionLabel} ${serialized.visitorName}.`,
-                        data: { type: 'visitor_update', visitorId: serialized.id, societyId: serialized.societyId, status: nextStatus }
+                        title: `Visitor ${actionLabel}`,
+                        body: `Resident has ${actionLabel.toLowerCase()} entry for ${serialized.visitorName}.`,
+                        data: { type: 'visitor_decision', visitorId: serialized.id, societyId: serialized.societyId, status: nextStatus }
                     });
+                    console.log(`[push] Sent ${actionLabel} decision to gatekeeper: ${gatekeeper.userName}`);
                 } catch (e) {
                     console.error('[push] Failed to notify gatekeeper:', e?.message || e);
                 }
