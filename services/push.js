@@ -22,9 +22,11 @@ const initPush = () => {
       });
     }
 
+    console.log('[push] Initialized successfully with firebase-service-account.json');
     return { enabled: true };
   }
 
+  console.warn('[push] Initialization failed: firebase-service-account.json not found in backend directory!');
   return { enabled: false };
 };
 
@@ -42,6 +44,12 @@ const sendPush = async ({ tokens, title, body, data = {} }) => {
     notification: {
       title: title ?? "",
       body: body ?? "",
+    },
+    android: {
+      notification: {
+        channel_id: 'fcm_default_channel',
+        priority: 'high',
+      }
     },
     data: Object.fromEntries(
       Object.entries(data).map(([k, v]) => [k, v == null ? "" : String(v)])
