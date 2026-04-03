@@ -16,17 +16,27 @@ const initPush = () => {
     const parsed = require(serviceAccountPath);
     const a = getAdmin();
 
-    if (!a.apps.length) {
-      a.initializeApp({
-        credential: a.credential.cert(parsed),
-      });
-    }
-
     console.log('[push] Initialized successfully with firebase-service-account.json');
     return { enabled: true };
   }
 
-  console.warn('[push] Initialization failed: firebase-service-account.json not found in backend directory!');
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const parsed = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      const a = getAdmin();
+      if (!a.apps.length) {
+        a.initializeApp({
+          credential: a.credential.cert(parsed),
+        });
+      }
+      console.log('[push] Initialized successfully via FIREBASE_SERVICE_ACCOUNT env variable');
+      return { enabled: true };
+    } catch (e) {
+      console.error('[push] Failed to parse FIREBASE_SERVICE_ACCOUNT env variable:', e.message);
+    }
+  }
+
+  console.warn('[push] Initialization failed: No firebase config found (file or environment variable)!');
   return { enabled: false };
 };
 
