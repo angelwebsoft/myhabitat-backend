@@ -785,8 +785,31 @@ app.patch('/api/maintenance/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
+        const before = await MaintenanceBill.findOne({ id });
         const bill = await MaintenanceBill.findOneAndUpdate({ id }, updates, { new: true });
+
         if (!bill) return res.status(404).json({ error: 'Bill not found' });
+
+        // Notify Admin if a resident paid their bill
+        if (updates.status === 'paid' && before?.status !== 'paid') {
+            const admins = await User.find({ society_id: bill.society_id, role: 'admin' });
+            const tokens = admins.map(a => a.fcm_token || a.fcmToken).filter(Boolean);
+
+            if (isPushEnabled() && tokens.length > 0) {
+                try {
+                    await sendPush({
+                        tokens,
+                        title: 'Payment Received',
+                        body: `Flat ${bill.flat_number} has paid ₹${bill.amount} for ${bill.month} ${bill.year}.`,
+                        data: { type: 'payment_received', billId: bill.id, flatNumber: bill.flat_number }
+                    });
+                    console.log(`[push] Notified ${tokens.length} admins of payment from Flat ${bill.flat_number}`);
+                } catch (e) {
+                    console.error('[push] Failed to notify admins of payment:', e.message);
+                }
+            }
+        }
+
         res.json(bill);
     } catch (error) {
         res.status(400).json({ error: error.message });
