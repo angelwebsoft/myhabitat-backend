@@ -510,6 +510,25 @@ app.post('/api/preapproved', async (req, res) => {
         const created = await new PreApprovedGuest(payload).save();
         const serialized = serializePreApproved(created);
         emitSocietyEvent(serialized.societyId, 'preapproved:created', serialized);
+
+        // Push notify all gatekeepers of the new pre-approval
+        const gatekeepers = await User.find({ societyId: serialized.societyId, role: 'gatekeeper' });
+        const tokens = gatekeepers.map(g => g.fcmToken).filter(Boolean);
+
+        if (isPushEnabled() && tokens.length > 0) {
+            try {
+                const resident = await User.findOne({ uniqueId: serialized.residentId });
+                await sendPush({
+                    tokens,
+                    title: 'New Guest Expected',
+                    body: `${serialized.visitorName} pre-approved by Flat ${resident?.flatNumber || '?'} for ${new Date(serialized.validDate).toLocaleDateString()}.`,
+                    data: { type: 'preapproved_created', guestId: serialized.id }
+                });
+            } catch (e) {
+                console.error('[push] Failed to notify gatekeepers of pre-approval:', e.message);
+            }
+        }
+
         res.status(201).json(serialized);
     } catch (error) {
         res.status(400).json({ error: error.message });
